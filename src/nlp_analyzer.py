@@ -34,16 +34,29 @@ def analyze_big_five(profile_data: dict) -> dict:
     
     user_embedding = model.encode([full_text])
     
-    # 4. Cálculo de Similitud del Coseno
-    results = {}
+    # 4. Cálculo de Similitud del Coseno y Normalización (Base 100%)
+    raw_scores = {}
+    total_similarity = 0.0
+    
     for trait, anchor_text in ANCHORS.items():
         anchor_embedding = model.encode([anchor_text])
         similarity = cosine_similarity(user_embedding, anchor_embedding)[0][0]
         
-        # Convertimos la similitud matemática a un porcentaje legible
-        score_pct = max(0, min(100, round(float(similarity) * 100, 2)))
-        results[trait] = f"{score_pct}%"
+        # Evitamos números negativos en caso de que la similitud sea opuesta
+        valid_score = max(0.0, float(similarity))
+        raw_scores[trait] = valid_score
+        total_similarity += valid_score
         
+    results = {}
+    # Convertimos los valores crudos a porcentajes proporcionales
+    if total_similarity > 0:
+        for trait, score in raw_scores.items():
+            normalized_score = (score / total_similarity) * 100
+            results[trait] = f"{round(normalized_score, 2)}%"
+    else:
+        for trait in ANCHORS.keys():
+            results[trait] = "0.0%"
+            
     return {
         "status": "Completado",
         "word_count": word_count,
