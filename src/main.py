@@ -5,6 +5,7 @@ import asyncio
 from src.session_manager import generate_session, COOKIE_PATH
 from src.profile_scraper import get_profile_info
 from src.post_scraper import get_recent_posts
+from src.nlp_analyzer import analyze_big_five
 
 async def run_pipeline(username: str):
     clean_username = username if username.startswith("@") else f"@{username}"
@@ -19,20 +20,28 @@ async def run_pipeline(username: str):
     else:
         print(f"\n[PREPARACIÓN] Reutilizando sesión existente...")
 
-    print(f"\n[1/2] Extrayendo datos del perfil...")
+    print(f"\n[1/3] Extrayendo datos del perfil...")
     try:
         profile_data = await get_profile_info(clean_username)
     except Exception as e:
         print(f"[ERROR] Falló la extracción del perfil: {e}")
         return None
 
-    print("\n[2/2] Extrayendo métricas de publicaciones...")
+    print("\n[2/3] Extrayendo métricas de publicaciones...")
     try:
         posts = await get_recent_posts(clean_username, limit=15)
         profile_data["recent_posts"] = posts
     except Exception as e:
         print(f"[ERROR] Falló la extracción de publicaciones: {e}")
         profile_data["recent_posts"] = []
+
+    print("\n[3/3] Evaluando perfil psicológico (Big Five)...")
+    try:
+        big_five_results = analyze_big_five(profile_data)
+        profile_data["big_five_analysis"] = big_five_results
+    except Exception as e:
+        print(f"[ERROR] Falló el análisis NLP: {e}")
+        profile_data["big_five_analysis"] = {"status": "Error", "reason": str(e)}
 
     os.makedirs("reports", exist_ok=True)
     clean_name = clean_username.replace('@', '')
