@@ -69,6 +69,23 @@ class TikTokScraperGUI:
         res += f" 👣 Siguiendo:   {data.get('following')}\n"
         res += f" ❤️ Likes Total: {data.get('total_likes')}\n"
         res += f" 📝 Bio:         {data.get('bio')}\n"
+        
+        # --- NUEVA SECCIÓN: BIG FIVE ---
+        res += "-"*50 + "\n"
+        res += " 🧠 ANÁLISIS BIG FIVE (NLP):\n"
+        res += "-"*50 + "\n"
+        big_five = data.get("big_five_analysis", {})
+        res += f"  Estado: {big_five.get('status', 'Desconocido')}\n"
+        
+        if big_five.get("status") == "Completado":
+            res += f"  Palabras analizadas: {big_five.get('word_count')}\n"
+            scores = big_five.get("scores", {})
+            for trait, score in scores.items():
+                res += f"  - {trait}: {score}\n"
+        else:
+            res += f"  Motivo: {big_five.get('reason', 'Sin datos')}\n"
+
+        # --- SECCIÓN DE PUBLICACIONES ---
         res += "-"*50 + "\n"
         res += " 🎬 ÚLTIMAS PUBLICACIONES:\n"
         res += "-"*50 + "\n"
@@ -77,7 +94,6 @@ class TikTokScraperGUI:
             res += f"  Video {i+1}:\n"
             res += f"  🔗 URL:   {post.get('url')}\n"
             res += f"  👍 Likes: {post.get('likes')} | 💬 Coment: {post.get('comments')} | ⭐ Favs: {post.get('favorites')}\n"
-            # NUEVO: Mostramos el texto extraído para el análisis de embeddings
             res += f"  📝 Texto: {post.get('text')}\n\n"
 
         self.insert_text(res)
