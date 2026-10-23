@@ -4,21 +4,26 @@ import threading
 import asyncio
 import json
 import os
-from src.main import run_pipeline
+# Importamos la nueva función orquestadora de compatibilidad
+from src.main import run_matchmaker_pipeline
 
 class TikTokScraperGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("TikTok Scraper Pro")
-        self.root.geometry("600x550")
+        self.root.title("TikTok Scraper Pro - AI Matchmaker")
+        self.root.geometry("650x650")
         self.root.configure(padx=20, pady=20)
 
         # Panel de entrada
-        tk.Label(root, text="Ingresa el Username de TikTok (ej. @tiktok):", font=("Arial", 12, "bold")).pack(anchor="w")
-        self.entry_user = tk.Entry(root, font=("Arial", 14))
-        self.entry_user.pack(fill="x", pady=(5, 15))
+        tk.Label(root, text="Tu Username (ej. @tu_usuario):", font=("Arial", 12, "bold")).pack(anchor="w")
+        self.entry_user1 = tk.Entry(root, font=("Arial", 14))
+        self.entry_user1.pack(fill="x", pady=(5, 10))
 
-        self.btn_run = tk.Button(root, text="▶ Extraer Datos", bg="#20D5EC", font=("Arial", 12, "bold"), command=self.start_scraping)
+        tk.Label(root, text="Username de tu Crush/Objetivo (ej. @crush):", font=("Arial", 12, "bold")).pack(anchor="w")
+        self.entry_user2 = tk.Entry(root, font=("Arial", 14))
+        self.entry_user2.pack(fill="x", pady=(5, 15))
+
+        self.btn_run = tk.Button(root, text="▶ Analizar Compatibilidad", bg="#FF4B4B", fg="white", font=("Arial", 12, "bold"), command=self.start_scraping)
         self.btn_run.pack(fill="x", ipady=5)
 
         # Panel de visualización de datos
@@ -27,25 +32,27 @@ class TikTokScraperGUI:
         self.result_box.pack(fill="both", expand=True)
 
     def start_scraping(self):
-        username = self.entry_user.get().strip()
-        if not username:
-            messagebox.showwarning("Aviso", "El campo del usuario no puede estar vacío.")
+        user1 = self.entry_user1.get().strip()
+        user2 = self.entry_user2.get().strip()
+        
+        if not user1 or not user2:
+            messagebox.showwarning("Advertencia", "Por favor ingresa ambos usuarios.")
             return
 
         # Bloquear botón y limpiar pantalla
-        self.btn_run.config(state=tk.DISABLED, text="⏳ Extrayendo...")
+        self.btn_run.config(state=tk.DISABLED, text="⏳ Analizando Perfiles...")
         self.result_box.delete(1.0, tk.END)
-        self.insert_text(f"Iniciando proceso para {username}...\n(El navegador invisible se está ejecutando de fondo)\n\n")
+        self.insert_text(f"Iniciando proceso para {user1} y {user2}...\n(El navegador invisible se está ejecutando de fondo)\n\n")
 
         # Ejecutar en un hilo separado para no congelar la interfaz
-        threading.Thread(target=self.run_async_task, args=(username,), daemon=True).start()
+        threading.Thread(target=self.run_async_task, args=(user1, user2), daemon=True).start()
 
-    def run_async_task(self, username):
+    def run_async_task(self, user1, user2):
         try:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            # Ejecutamos el scraper y capturamos la ruta del JSON generado
-            report_path = loop.run_until_complete(run_pipeline(username))
+            # Ejecutamos el nuevo orquestador de parejas
+            report_path = loop.run_until_complete(run_matchmaker_pipeline(user1, user2))
 
             if report_path and os.path.exists(report_path):
                 self.display_json_data(report_path)
@@ -55,46 +62,43 @@ class TikTokScraperGUI:
             self.insert_text(f"\n[ERROR CRÍTICO] {e}\n")
         finally:
             # Restaurar botón al terminar
-            self.root.after(0, lambda: self.btn_run.config(state=tk.NORMAL, text="▶ Extraer Datos"))
+            self.root.after(0, lambda: self.btn_run.config(state=tk.NORMAL, text="▶ Analizar Compatibilidad"))
 
     def display_json_data(self, filepath):
-        """Lee el JSON y lo muestra estructurado en la interfaz."""
+        """Lee el JSON de compatibilidad y lo muestra estructurado en la interfaz."""
         with open(filepath, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         res = "="*50 + "\n"
-        res += f" 👤 PERFIL: {data.get('username')}\n"
+        res += " 💘 REPORTE DE COMPATIBILIDAD Y ESTRATEGIA\n"
+        res += "="*50 + "\n\n"
+
+        # Función auxiliar para formatear cada perfil
+        def format_profile(profile_data, title):
+            if not profile_data:
+                return f" [!] Datos no encontrados para {title}\n\n"
+                
+            p_res = f" 👤 {title}: {profile_data.get('username', 'N/A')}\n"
+            p_res += f" 👥 Seguidores: {profile_data.get('followers')} | 👣 Siguiendo: {profile_data.get('following')}\n"
+            
+            big_five = profile_data.get("big_five_analysis", {})
+            p_res += f" 🧠 Big Five ({big_five.get('status', 'Error')}):\n"
+            
+            if big_five.get("status") == "Completado":
+                for trait, score in big_five.get("scores", {}).items():
+                    p_res += f"    - {trait}: {score}\n"
+            else:
+                p_res += f"    - Motivo: {big_five.get('reason', 'Sin datos suficientes')}\n"
+            return p_res + "\n"
+
+        # Mostrar perfil 1 y 2
+        res += format_profile(data.get("user1_profile", {}), "USUARIO 1 (Tú)")
+        res += format_profile(data.get("user2_profile", {}), "USUARIO 2 (Objetivo)")
+
+        # Mostrar la estrategia de conquista
         res += "="*50 + "\n"
-        res += f" 👥 Seguidores:  {data.get('followers')}\n"
-        res += f" 👣 Siguiendo:   {data.get('following')}\n"
-        res += f" ❤️ Likes Total: {data.get('total_likes')}\n"
-        res += f" 📝 Bio:         {data.get('bio')}\n"
-        
-        # --- NUEVA SECCIÓN: BIG FIVE ---
-        res += "-"*50 + "\n"
-        res += " 🧠 ANÁLISIS BIG FIVE (NLP):\n"
-        res += "-"*50 + "\n"
-        big_five = data.get("big_five_analysis", {})
-        res += f"  Estado: {big_five.get('status', 'Desconocido')}\n"
-        
-        if big_five.get("status") == "Completado":
-            res += f"  Palabras analizadas: {big_five.get('word_count')}\n"
-            scores = big_five.get("scores", {})
-            for trait, score in scores.items():
-                res += f"  - {trait}: {score}\n"
-        else:
-            res += f"  Motivo: {big_five.get('reason', 'Sin datos')}\n"
-
-        # --- SECCIÓN DE PUBLICACIONES ---
-        res += "-"*50 + "\n"
-        res += " 🎬 ÚLTIMAS PUBLICACIONES:\n"
-        res += "-"*50 + "\n"
-
-        for i, post in enumerate(data.get('recent_posts', [])):
-            res += f"  Video {i+1}:\n"
-            res += f"  🔗 URL:   {post.get('url')}\n"
-            res += f"  👍 Likes: {post.get('likes')} | 💬 Coment: {post.get('comments')} | ⭐ Favs: {post.get('favorites')}\n"
-            res += f"  📝 Texto: {post.get('text')}\n\n"
+        res += f"{data.get('strategy', 'No se pudo generar la estrategia.')}\n"
+        res += "="*50 + "\n"
 
         self.insert_text(res)
 
@@ -103,7 +107,6 @@ class TikTokScraperGUI:
         self.root.after(0, self._append, text)
 
     def _append(self, text):
-        # LÍNEAS CORREGIDAS: Únicamente result_box
         self.result_box.insert(tk.END, text)
         self.result_box.see(tk.END)
 
